@@ -1,4 +1,4 @@
-# Dice Wallet
+# DiceWallet
 
 <table>
   <tr>
@@ -43,7 +43,7 @@
   </tr>
 </table>
 
-**DiceWallet** is experimental open-source wallet firmware for ESP32-2432S028 CYD (Cheap Yellow Display) boards. These boards are relatively inexpensive and easy to source. Dice Wallet is amnesic and works completely offline. 
+**DiceWallet** is experimental open-source wallet firmware for ESP32-2432S028 CYD (Cheap Yellow Display) boards. These boards are relatively inexpensive and easy to source. DiceWallet is amnesic and works completely offline. 
 
 When creating a new wallet it turns 100 to 200 physical six-sided dice rolls into a BIP39 seed phrase, then shows watch-only extended public keys (xpubs) as QR codes. 
 
@@ -303,7 +303,7 @@ These boards are inexpensive, widely available, and include a color touchscreen 
 
 Buy a generic **ESP32-2432S028** (CYD) board. Search for `ESP32-2432S028` or `ESP32 Cheap Yellow Display`. Confirm the listing is the 2.8 inch 240×320 resistive-touch board. Some panels are ST7789. This build expects ILI9341 but could be easily modified for other displays.
 
-Dice Wallet is not affiliated with any of the sellers or links below.
+DiceWallet is not affiliated with any of the sellers or links below.
 
 - [AliExpress — ESP32-2432S028](https://www.aliexpress.com/item/1005011857768315.html)
 - [Amazon — ESP32-2432S028](https://www.amazon.com/AOICRIE-Development-ESP32-2432S028R-Bluetooth-Resistive/dp/B0FFGZTGYN/ref=sr_1_6?th=1)
@@ -555,7 +555,7 @@ Do not burn `ABS_DONE_1` by hand. Let the bootloader do it, so the digest matche
 
 The seed is not written to flash. It exists in RAM for the session and is wiped on exit. Power-off drops it. A later dump of the flash does not contain any secret data.
 
-Remote attack is not feasible. Tis build compiles out Wi-Fi and Bluetooth. An attacker needs physical access to the device itself.
+Remote attack is not feasible. This build compiles out Wi-Fi and Bluetooth. An attacker needs physical access to the device itself.
 
 #### Entropy weakness
 
