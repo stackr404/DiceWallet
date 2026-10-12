@@ -1,0 +1,7 @@
+.pio/
+.vscode/
+.cache/
+*.bin
+*.elf
+*.sha256
+.DS_Store

@@ -1,0 +1,68 @@
+DiceWallet
+Copyright (c) 2026 DiceWallet contributors
+
+This product includes software developed by the DiceWallet contributors
+and the third-party components listed below. The license for DiceWallet
+itself is in the LICENSE file at the root of this repository. Each
+third-party component remains under its own license. Those terms apply
+only to that component.
+
+Do not remove these notices from a source or binary distribution.
+
+-------------------------------------------------------------------------------
+LVGL
+Copyright (c) LVGL Kft
+License: MIT
+https://github.com/lvgl/lvgl
+Used for the user interface. Fetched by PlatformIO (lvgl/lvgl).
+
+-------------------------------------------------------------------------------
+TFT_eSPI
+Copyright (c) Bodmer
+License: MIT
+https://github.com/Bodmer/TFT_eSPI
+Derived from Adafruit_ILI9341, which is also MIT.
+Used for the display. Fetched by PlatformIO (bodmer/TFT_eSPI).
+
+-------------------------------------------------------------------------------
+XPT2046_Touchscreen
+Copyright (c) 2015 Paul Stoffregen
+License: MIT
+https://github.com/PaulStoffregen/XPT2046_Touchscreen
+Used for the touch controller. Fetched by PlatformIO.
+
+-------------------------------------------------------------------------------
+Mbed TLS
+Copyright The Mbed TLS Contributors
+License: Apache-2.0 OR GPL-2.0-or-later
+https://github.com/Mbed-TLS/mbedtls
+Cryptographic primitives (SHA-256, ECC, PBKDF2, and related functions)
+come from the ESP-IDF copy of Mbed TLS.
+
+src/third_party/ripemd160.c is a vendored Mbed TLS RIPEMD-160 implementation.
+Source: https://github.com/Mbed-TLS/mbedtls/blob/mbedtls-3.6/library/ripemd160.c
+SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
+Copyright The Mbed TLS Contributors
+The RIPEMD-160 algorithm was designed by RIPE in 1996.
+
+-------------------------------------------------------------------------------
+ESP-IDF and the ESP32 Arduino core
+ESP-IDF: Apache-2.0, Espressif Systems
+https://github.com/espressif/esp-idf
+Arduino-ESP32: LGPL-2.1-or-later, Espressif Systems
+https://github.com/espressif/arduino-esp32
+Provided by the PlatformIO espressif32 platform. This firmware is built
+against that core and links it.
+
+-------------------------------------------------------------------------------
+Unity
+Copyright (c) ThrowTheSwitch
+License: MIT
+https://github.com/ThrowTheSwitch/Unity
+Used only by the on-device tests. Fetched by PlatformIO.
+
+-------------------------------------------------------------------------------
+BIP-0039 English wordlist
+The English mnemonic wordlist in src/bip39/wordlist_en.cpp is the list
+published in BIP-0039:
+https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
