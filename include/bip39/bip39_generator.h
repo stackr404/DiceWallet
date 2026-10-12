@@ -8,12 +8,6 @@ struct binary_256 {
   uint8_t data[32];
 };
 
-// struct binary_256_result {
-//   bool success;
-//   int failAt;
-//   binary_256 bits;
-// };
-
 // mnemonic_24_words[i] points into the language wordlist.
 // The pointers stay valid for the life of the program.
 // No heap copy of the phrase is made.
