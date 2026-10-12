@@ -14,15 +14,6 @@ enum bip39_language {
 };
 
 const char *const *bip39_wordlist_en(void);
-/*const char *const *bip39_wordlist_es(void);
-const char *const *bip39_wordlist_fr(void);
-const char *const *bip39_wordlist_it(void);
-const char *const *bip39_wordlist_pt(void);
-const char *const *bip39_wordlist_cs(void);
-const char *const *bip39_wordlist_ja(void);
-const char *const *bip39_wordlist_ko(void);
-const char *const *bip39_wordlist_zh_hans(void);
-const char *const *bip39_wordlist_zh_hant(void);*/
 
 const char *const *bip39_words(bip39_language language);
 int bip39_word_count(void);
