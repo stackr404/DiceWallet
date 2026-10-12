@@ -27,17 +27,6 @@ static uint32_t lvgl_tick(void) {
   return millis();
 }
 
-/*static void flush_display(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map) {
-  const uint32_t w = area->x2 - area->x1 + 1;
-  const uint32_t h = area->y2 - area->y1 + 1;
-
-  tft.startWrite();
-  tft.setAddrWindow(area->x1, area->y1, w, h);
-  tft.pushColors(reinterpret_cast<uint16_t *>(px_map), w * h, true);
-  tft.endWrite();
-  lv_display_flush_ready(disp);
-}*/
-
 static void flush_display(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map) {
   const uint32_t w = area->x2 - area->x1 + 1;
   const uint32_t h = area->y2 - area->y1 + 1;
@@ -78,15 +67,6 @@ static void read_touch(lv_indev_t *indev, lv_indev_data_t *data) {
 void drivers_init(void) {
   tft.begin();
 
-  /* TEST RGB
-  tft.fillScreen(TFT_RED);
-  delay(2700);
-  tft.fillScreen(TFT_GREEN);
-  delay(2700);
-  tft.fillScreen(TFT_BLUE);
-  delay(2700);
- */
-
   tft.setRotation(0);
   tft.fillScreen(TFT_BLACK);
 
@@ -104,8 +84,6 @@ void drivers_init(void) {
   lv_indev_t *pointer = lv_indev_create();
   lv_indev_set_type(pointer, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(pointer, read_touch);
-
-
 }
 
 void drivers_wipe_framebuffer(void) {
