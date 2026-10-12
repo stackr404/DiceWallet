@@ -38,7 +38,7 @@
     <td align="center">Instructions</td>
     <td align="center">Dice roll</td>
     <td align="center">Confirm words</td>
-    <td align="center">Recover phrase</td>
+    <td align="center">BIP39 mnemonic</td>
     <td align="center">View public key</td>    
   </tr>
 </table>
