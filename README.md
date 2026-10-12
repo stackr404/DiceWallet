@@ -110,17 +110,11 @@ One hundred remains available for a die the user trusts. Two hundred is there fo
         <a href="assets/readme_images/ui_import_wallet_words_select.jpg">
         <img src="assets/readme_images/ui_import_wallet_words_select.jpg" alt="Select word" width="150">
         </a>    
-    </td>      
-    <td>
-        <a href="assets/readme_images/ui_import_wallet_words_select_24th_button.jpg">
-        <img src="assets/readme_images/ui_import_wallet_words_select_24th_button.jpg" alt="Select 24th word" width="150">
-        </a>    
-    </td>        
+    </td>              
   </tr>
   <tr>
     <td align="center">Import words</td>
     <td align="center">Select word</td>
-    <td align="center">Select 24th word</td> 
   </tr>
 </table>
 
