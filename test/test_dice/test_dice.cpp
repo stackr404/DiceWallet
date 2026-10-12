@@ -114,7 +114,7 @@ void setup() {
   UNITY_BEGIN();
 
   RUN_TEST(test_all_ones_is_chi_error);
-test_show_result("all ones chi error", Unity.CurrentTestFailed == 0);
+  test_show_result("all ones chi error", Unity.CurrentTestFailed == 0);
 
   RUN_TEST(test_balanced_counts_pass_chi);
   test_show_result("balaced counts pass chi", Unity.CurrentTestFailed == 0);
