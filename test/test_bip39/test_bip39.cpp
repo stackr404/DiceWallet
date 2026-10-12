@@ -4,28 +4,6 @@
 #include "bip39/bip39_generator.h"
 #include "../data/vectors.h"
 
-// /**
-//  * Calculates the Hamming Distance (total changed bits) between two 256-bit arrays.
-//  * 
-//  * @param array1 Pointer to the first 32-byte array.
-//  * @param array2 Pointer to the second 32-byte array.
-//  * @return The total number of bits that differ between the two arrays (0 to 256).
-//  */
-// static int count_changed_bits(const uint8_t *array1, const uint8_t *array2) {
-//     int total_changed_bits = 0;
-
-//     for (int i = 0; i < 32; i++) {
-//         // XOR yields a 1-bit only where the bits in array1 and array2 differ
-//         uint8_t xor_result = array1[i] ^ array2[i];
-
-//         // __builtin_popcount is a compiler built-in that uses ultra-fast 
-//         // hardware-level instructions (or optimized assembly) to count 1-bits.
-//         total_changed_bits += __builtin_popcount(xor_result);
-//     }
-
-//     return total_changed_bits;
-// }
-
 static void join_phrase(const wallet_generation_result& w, char* out, size_t out_len) {
   size_t used = 0;
   out[0] = '\0';
