@@ -1,4 +1,4 @@
-# DiceWallet
+# Dice Wallet
 
 <table>
   <tr>
@@ -43,7 +43,7 @@
   </tr>
 </table>
 
-**DiceWallet** is experimental open-source wallet firmware for ESP32-2432S028 CYD (Cheap Yellow Display) boards. These boards are relatively inexpensive and easy to source. DiceWallet is amnesic and works completely offline. 
+**Dice Wallet** is experimental open-source wallet firmware for ESP32-2432S028 CYD (Cheap Yellow Display) boards. These boards are relatively inexpensive and easy to source. Dice Wallet is amnesic and works completely offline. 
 
 When creating a new wallet it turns 100 to 200 physical six-sided dice rolls into a BIP39 seed phrase, then shows watch-only extended public keys (xpubs) as QR codes. 
 
@@ -59,7 +59,7 @@ Version: **0.1.0** (experimental; not a 1.0 release)
 
 Most hardware wallets rely on a hardware random number generator (TRNG). While modern TRNGs are excellent, they are opaque. Users must trust that the chip is not biased, that the firmware is not leaking entropy, that the software isn't actually using a PRNG (Pseudo Random Number Generator), and that the manufacturer did not insert a backdoor.
 
-DiceWallet takes a different approach:
+Dice Wallet takes a different approach:
 
 1. The user rolls a physical die **100 to 200 times**. Advanced settings choose the count; the default is 128.
 2. The device records each face (1–6).
@@ -191,11 +191,11 @@ Each BIP39 word is an 11-bit index into the 2048-word English list, from 0 to 20
 | Integer | The index, 0–2047, four digits | `1. 0000` |
 | Hex | The index as three hex digits | `1. 000` |
 | Binary | The index as 11 bits, high bit first | `1. 00000000000` |
-| Dot grid | The same 11 bits as a punch plate | one row of the grid |
+| Dot grid | The same 11 bits as a dot map (found on many physical punch plates). Black square = 1, whites square = 0. | one row of the grid |
 
-The integer, hex, and binary lines are the same value. `0000`, `000`, and `00000000000` are all index 0. Index 2047 is `2047`, `7FF`, and `11111111111`.
+The integer, hex, and binary lines are the same value. `0000`, `000`, and `00000000000` are all zero index. Index 2047 is `2047`, `7FF`, and `11111111111`.
 
-The dot grid is a 24 by 11 plate. Each row is one word. Each column is one bit of that word's 11-bit index, with the high bit on the left. A filled cell is a 1. An empty cell is a 0. Up and down move a red highlight between rows, and the highlighted row number is shown beside the plate. The grid is the binary view drawn for a punch card or a transcription plate, not a different encoding.
+The dot grid is a 24 by 11 plate. Each row is one word. Each column is one bit of that word's 11-bit index, with the high bit on the left. A black cell is a 1. A white cell is a 0. Up and down move a red highlight between rows, and the highlighted row number is shown beside the plate. The grid is the binary view drawn for a punch card or a transcription plate, it's not a different encoding.
 
 All five views are the same 24 indexes. Changing the view does not change the seed.
 
@@ -221,7 +221,6 @@ An optional BIP39 passphrase is supported and is wiped from memory after use.
   - Manual secure wipe.
   - Exit / secure shutdown screen.
 - **About** — Firmware version and the SHA-256 of the running app image. Compare this hex to the published `firmware.sha256`.
-- **Predelivery** — Factory / eFuse-related checks (UART download disable, etc.).
 
 ### Security Hardening
 
@@ -290,6 +289,8 @@ The UI is fully translated. Supported languages include:
 - Russian (Cyrillic font)
 - Chinese (Simplified), Japanese, Korean (custom CJK fonts)
 
+All language translations other than English may require modification by someone who speaks the language natively. 
+
 Font assets are embedded as C arrays (`custom_*.c`) for the required character sets.
 
 ---
@@ -297,13 +298,13 @@ Font assets are embedded as C arrays (`custom_*.c`) for the required character s
 ## Hardware
 
 Target platform: **ESP32-CYD** (Cheap Yellow Display) boards running the Arduino framework via PlatformIO.  
-These boards are inexpensive, widely available, and include a color touchscreen with enough resources to run DiceWallet comfortably.
+These boards are inexpensive, widely available, and include a color touchscreen with enough resources to run Dice Wallet comfortably.
 
 ### Where to buy
 
 Buy a generic **ESP32-2432S028** (CYD) board. Search for `ESP32-2432S028` or `ESP32 Cheap Yellow Display`. Confirm the listing is the 2.8 inch 240×320 resistive-touch board. Some panels are ST7789. This build expects ILI9341 but could be easily modified for other displays.
 
-DiceWallet is not affiliated with any of the sellers or links below.
+Dice Wallet is not affiliated with any of the sellers or links below.
 
 - [AliExpress — ESP32-2432S028](https://www.aliexpress.com/item/1005011857768315.html)
 - [Amazon — ESP32-2432S028](https://www.amazon.com/AOICRIE-Development-ESP32-2432S028R-Bluetooth-Resistive/dp/B0FFGZTGYN/ref=sr_1_6?th=1)
@@ -341,7 +342,7 @@ Development uses VS Code and the PlatformIO extension. The CLI commands below wo
 
 1. Install [VS Code](https://code.visualstudio.com/).
 2. Install the PlatformIO IDE extension from the Extensions view. The extension installs the PlatformIO core and the toolchains it needs.
-3. Open the DiceWallet folder with File → Open Folder. PlatformIO reads `platformio.ini` from that folder. Do not open a parent directory.
+3. Open the Dice Wallet folder with File → Open Folder. PlatformIO reads `platformio.ini` from that folder. Do not open a parent directory.
 4. The first build downloads the Espressif 32 platform and the libraries. That takes several minutes. Later builds are incremental.
 
 The board used for development and testing is an ESP32-2432S028 CYD (Cheap Yellow Display). The PlatformIO board id is `esp32dev`. Other ESP32 boards need pin and driver changes. This build selects `ILI9341_2_DRIVER`. Some CYD panels are ST7789 and will not work with this configuration.
@@ -472,7 +473,7 @@ This needs an ESP32 revision v3.0 or later. Check with `espefuse summary` before
 To check the status of the ESP eFuses run this command (your port may differ):
 
 ```bash
-~/.dicewallet/esptools/bin/espefuse --port /dev/ttyUSB0 summary
+~/.Dice Wallet/esptools/bin/espefuse --port /dev/ttyUSB0 summary
 ```
 
 To build:
@@ -495,17 +496,17 @@ pio run -e esp32dev_secure -t upload-signed
 The PEM lives outside the tree:
 
 ```text
-~/.dicewallet/secure_boot_signing_key.pem
+~/.Dice Wallet/secure_boot_signing_key.pem
 ```
 
-Or set the `DICEWALLET_SIGNING_KEY` env setting to its path. `scripts/sign_firmware.py` uses that key. If it is missing, the secure build prints `secure boot: key not present, image unsigned` and does not sign.
+Or set the `Dice Wallet_SIGNING_KEY` env setting to its path. `scripts/sign_firmware.py` uses that key. If it is missing, the secure build prints `secure boot: key not present, image unsigned` and does not sign.
 
 Generate it once, on a machine you keep the key on:
 
 ```bash
-mkdir -p ~/.dicewallet
-espsecure generate-signing-key --version 2 ~/.dicewallet/secure_boot_signing_key.pem
-chmod 600 ~/.dicewallet/secure_boot_signing_key.pem
+mkdir -p ~/.Dice Wallet
+espsecure generate-signing-key --version 2 ~/.Dice Wallet/secure_boot_signing_key.pem
+chmod 600 ~/.Dice Wallet/secure_boot_signing_key.pem
 ```
 
 Losing this file bricks every board whose digest was burned from it. Keep an offline copy. Do not commit it.
@@ -517,7 +518,7 @@ The signed files are under `.pio/build/esp32dev_secure/`:
 ```text
 bootloader.signed.bin
 firmware.signed.bin
-dicewallet-<version>-esp32dev_secure.signed.bin
+Dice Wallet-<version>-esp32dev_secure.signed.bin
 ```
 
 Signing appends a signature block. It does not change the app validation hash. The About screen still shows that hash.
@@ -527,7 +528,7 @@ Signing appends a signature block. It does not change the app validation hash. T
 The build does not burn fuses. `pio run -e esp32dev_secure -t upload` writes the app. With secure boot enabled it does not write the bootloader. Flash the signed bootloader yourself, then the app:
 
 ```bash
-~/.dicewallet/esptools/bin/esptool.py --port /dev/ttyUSB0 write_flash 0x1000 .pio/build/esp32dev_secure/bootloader.signed.bin
+~/.Dice Wallet/esptools/bin/esptool.py --port /dev/ttyUSB0 write_flash 0x1000 .pio/build/esp32dev_secure/bootloader.signed.bin
 pio run -e esp32dev_secure -t upload
 ```
 
@@ -536,7 +537,7 @@ Reset the board and watch the serial log. On that first boot the signed bootload
 ### Verify
 
 ```bash
-~/.dicewallet/esptools/bin/espefuse --port /dev/ttyUSB0 summary
+~/.Dice Wallet/esptools/bin/espefuse --port /dev/ttyUSB0 summary
 ```
 
 Secure boot is on when `ABS_DONE_1` is True and `BLOCK2` is no longer all zeros. The splash screen reads the same fuse and shows **Secure Boot On** or **Secure Boot Off**.
@@ -591,7 +592,7 @@ With physical access to the device, an attacker could swap the CYD board with on
 
 MIT License. SPDX-License-Identifier: MIT
 
-Copyright (c) 2026 DiceWallet contributors
+Copyright (c) 2026 Dice Wallet contributors
 
 Permission is granted to use, copy, modify, merge, publish, distribute, sublicense, and sell copies of this firmware. The copyright notice and license must be included in copies or substantial portions. The firmware is provided as is, without warranty. Full text: `LICENSE`.
 
@@ -607,4 +608,4 @@ Permission is granted to use, copy, modify, merge, publish, distribute, sublicen
 
 ---
 
-**DiceWallet** — Entropy you can hold in your hand.
+**Dice Wallet** — Entropy you can hold in your hand.
