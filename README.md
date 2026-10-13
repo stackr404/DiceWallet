@@ -291,6 +291,11 @@ Font assets are embedded as C arrays (`custom_*.c`) for the required character s
 
 ## Hardware
 
+<a href="assets/readme_images/ESP32-2432S028-CYD-cheap-yello-display.png">
+  <img src="assets/readme_images/ESP32-2432S028-CYD-cheap-yello-display.png" alt="ESP32-2432S028 CYD (cheap Yellow Display)" width="250">
+</a>    
+
+
 Target platform: **ESP32-CYD** (Cheap Yellow Display) boards running the Arduino framework via PlatformIO.  
 These boards are inexpensive, widely available, and include a color touchscreen with enough resources to run Dice Wallet comfortably.
 
