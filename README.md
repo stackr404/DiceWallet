@@ -1,5 +1,13 @@
 # Dice Wallet
 
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/version-0.1.0-black" alt="Version 0.1.0" />
+  <a href="https://github.com/stackr404/DiceWallet/issues"><img src="https://img.shields.io/github/issues/stackr404/DiceWallet?style=flat&color=2EA44F" alt="GitHub Issues" /></a>
+</p>
+
+---
+
 <table>
   <tr>
     <td>
