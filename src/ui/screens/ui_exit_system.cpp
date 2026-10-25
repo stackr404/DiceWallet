@@ -1,4 +1,6 @@
 #include <lvgl.h>
+#include <Arduino.h>
+#include "esp_sleep.h"
 #include "ui/screens/ui_helper.h"
 #include "ui/screens/ui_exit_system.h"
 #include "ui/screens/ui_settings_screen.h"
@@ -11,10 +13,16 @@
 #include "app/wallet.h"
 #include "ui/text/ui_text.h"
 
+// How long the exit screen stays visible before the ESP32 enters deep sleep.
+// Change this value to adjust the timeout. After sleep the device will not
+// wake until power is removed and reapplied.
+static const uint32_t kDeepSleepAfterMs = 30000;
+
 static lv_obj_t *s_unplug = nullptr;
 static lv_obj_t *s_flash = nullptr;
 static lv_timer_t *s_flip = nullptr;
 static lv_timer_t *s_flash_timer = nullptr;
+static lv_timer_t *s_sleep_timer = nullptr;
 static bool s_show_second = false;
 
 static void draw_bitmap(lv_event_t *event, const uint8_t *bits, int width, int height) {
@@ -87,6 +95,36 @@ static void on_flash(lv_timer_t *timer) {
   lv_timer_set_repeat_count(hide, 1);
 }
 
+static void enter_deep_sleep(void) {
+  // Stop all UI timers so nothing else runs.
+  if (s_flip != nullptr) {
+    lv_timer_delete(s_flip);
+    s_flip = nullptr;
+  }
+  if (s_flash_timer != nullptr) {
+    lv_timer_delete(s_flash_timer);
+    s_flash_timer = nullptr;
+  }
+  if (s_sleep_timer != nullptr) {
+    lv_timer_delete(s_sleep_timer);
+    s_sleep_timer = nullptr;
+  }
+
+  // Turn the backlight off so the screen looks powered down.
+  ledcWrite(21, 0);
+
+  // Ensure no wake sources are enabled. The device will stay asleep
+  // until power is removed and reapplied.
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+  esp_deep_sleep_start();
+  // Never returns.
+}
+
+static void on_sleep_timeout(lv_timer_t *timer) {
+  (void)timer;
+  enter_deep_sleep();
+}
+
 static void on_screen_delete(lv_event_t *event) {
   if (lv_event_get_code(event) != LV_EVENT_DELETE) return;
   if (s_flip != nullptr) {
@@ -96,6 +134,10 @@ static void on_screen_delete(lv_event_t *event) {
   if (s_flash_timer != nullptr) {
     lv_timer_delete(s_flash_timer);
     s_flash_timer = nullptr;
+  }
+  if (s_sleep_timer != nullptr) {
+    lv_timer_delete(s_sleep_timer);
+    s_sleep_timer = nullptr;
   }
   s_unplug = nullptr;
   s_flash = nullptr;
@@ -112,6 +154,10 @@ void ui_exit_system_show(void) {
   if (s_flash_timer != nullptr) {
     lv_timer_delete(s_flash_timer);
     s_flash_timer = nullptr;
+  }
+  if (s_sleep_timer != nullptr) {
+    lv_timer_delete(s_sleep_timer);
+    s_sleep_timer = nullptr;
   }
   s_show_second = false;
   ui_settings_screen_hold_awake(true);
@@ -164,12 +210,14 @@ void ui_exit_system_show(void) {
   lv_obj_set_style_border_width(s_flash, 0, 0);
   lv_obj_set_style_radius(s_flash, 0, 0);
   lv_obj_set_hidden(s_flash, true);
-  //lv_obj_add_flag(s_flash, LV_OBJ_FLAG_HIDDEN);
   lv_obj_set_scrollable(s_flash, false);
-  //lv_obj_remove_flag(s_flash, LV_OBJ_FLAG_SCROLLABLE);
 
   s_flip = lv_timer_create(on_flip, 1000, nullptr);
   s_flash_timer = lv_timer_create(on_flash, 5000, nullptr);
+
+  // One-shot timer: after kDeepSleepAfterMs enter deep sleep with no wake sources.
+  s_sleep_timer = lv_timer_create(on_sleep_timeout, kDeepSleepAfterMs, nullptr);
+  lv_timer_set_repeat_count(s_sleep_timer, 1);
 
   ui_screen_replace(screen);
 }
