@@ -8,6 +8,7 @@
 #include "bip39/bip39_wordlist.h"
 #include "ui/screens/ui_helper.h"
 #include "ui/screens/ui_import_wallet_method.h"
+#include "ui/screens/ui_import_wallet_words_24th_word.h"
 #include "ui/screens/ui_wallet_display_seed.h"
 #include "ui/theme/ui_theme.h"
 #include "ui/ui_nav.h"
@@ -27,6 +28,9 @@ static lv_obj_t *s_boxes[kBits];
 static lv_obj_t *s_box_labels[kBits];
 static lv_obj_t *s_carets[kBits];
 static lv_obj_t *s_hint = nullptr;
+static lv_obj_t *s_select_24th_button = nullptr;
+static void refresh(void);
+static void ui_import_wallet_words_bin_show_screen(void);
 
 static const char *word_for_index(int index) {
   if (index < 0 || index >= bip39_word_count()) return nullptr;
@@ -71,6 +75,10 @@ static void refresh(void) {
     if (s_carets[i]) lv_label_set_text(s_carets[i], active ? "^" : "");
   }
 
+  if (s_select_24th_button) {
+    lv_obj_set_hidden(s_select_24th_button, s_word != 23);
+  }
+
   if (!complete()) {
     lv_label_set_text(s_hint, TR("Enter all bits"));
     return;
@@ -89,9 +97,6 @@ static void finish_import(void) {
     result.word_indexes[i] = static_cast<uint16_t>(s_indexes[i]);
   }
   if (!result.success) {
-    // clear_bits();
-    // refresh();
-    // return;
     lv_label_set_text(s_hint, TR("Incorrect 24th index"));
     return;    
   }
@@ -151,6 +156,12 @@ static void on_cancel(lv_event_t *event) {
   device_scrub_residue();
 }
 
+static void on_select_24th(lv_event_t *event) {
+  (void)event;
+  if (s_word != 23) return;
+  ui_import_wallet_words_24th_word_show(1); // bin mode
+}
+
 static lv_obj_t *add_key(lv_obj_t *parent, const char *text, int x, int y, int w, int h, lv_event_cb_t handler) {
   lv_obj_t *button = lv_button_create(parent);
   lv_obj_set_size(button, w, h);
@@ -169,6 +180,30 @@ static lv_obj_t *add_key(lv_obj_t *parent, const char *text, int x, int y, int w
   return button;
 }
 
+void ui_import_wallet_words_bin_choose_word(const char *word) {
+  if (s_word < 24) {
+    s_chosen[s_word] = word;
+    s_indexes[s_word] = bip39_word_index(word, BIP39_EN);
+  }
+  clear_bits();
+  if (s_word < 23) {
+    s_word++;
+    ui_import_wallet_words_bin_resume();
+    return;
+  }
+  finish_import();
+}
+
+const char *ui_import_wallet_words_bin_chosen(int index) {
+  if (index < 0 || index >= 24) return nullptr;
+  return s_chosen[index];
+}
+
+void ui_import_wallet_words_bin_resume(void) {
+  clear_bits();
+  ui_import_wallet_words_bin_show_screen();
+}
+
 void ui_import_wallet_words_bin_show(void) {
   s_word = 0;
   clear_bits();
@@ -176,7 +211,10 @@ void ui_import_wallet_words_bin_show(void) {
     s_chosen[i] = nullptr;
     s_indexes[i] = 0;
   }
+  ui_import_wallet_words_bin_show_screen();
+}
 
+static void ui_import_wallet_words_bin_show_screen(void) {
   lv_obj_t *screen = ui_make_screen();
 
   ui_make_title(screen, TR("Import Wallet"));
@@ -223,15 +261,21 @@ void ui_import_wallet_words_bin_show(void) {
   const int key_gap = 8;
   const int keys_w = key_w * 3 + key_gap * 2;
   const int key_x = (240 - keys_w) / 2;
-  add_key(screen, TR("<"), key_x, 150, key_w, key_h, on_left);
-  add_key(screen, TR("Flip"), key_x + key_w + key_gap, 150, key_w, key_h, on_flip);
-  add_key(screen, TR(">"), key_x + 2 * (key_w + key_gap), 150, key_w, key_h, on_right);
-  add_key(screen, TR("OK"), key_x, 196, keys_w, key_h, on_ok);
-  add_key(screen, TR("Cancel"), key_x, 268, keys_w, key_h, on_cancel);
+  // Moved <, Flip, > and OK up a little to make space
+  add_key(screen, TR("<"), key_x, 140, key_w, key_h, on_left);
+  add_key(screen, TR("Flip"), key_x + key_w + key_gap, 140, key_w, key_h, on_flip);
+  add_key(screen, TR(">"), key_x + 2 * (key_w + key_gap), 140, key_w, key_h, on_right);
+  add_key(screen, TR("OK"), key_x, 186, keys_w, key_h, on_ok);
+  // New Select 24th Word button, only visible on 24th word
+  s_select_24th_button = add_key(screen, TR("Select 24th Word"), key_x, 232, keys_w, key_h, on_select_24th);
+  lv_obj_set_hidden(s_select_24th_button, true);
+  // Moved Cancel down a little
+  add_key(screen, TR("Cancel"), key_x, 278, keys_w, key_h, on_cancel);
 
   refresh();
   ui_screen_replace(screen);
 }
+
 void ui_import_wallet_words_bin_wipe(void) {
   secure_wipe(s_bits, sizeof(s_bits));
   secure_wipe(s_set, sizeof(s_set));
@@ -239,4 +283,5 @@ void ui_import_wallet_words_bin_wipe(void) {
   s_cursor = 0;
   s_word = 0;
   for (int i = 0; i < 24; ++i) s_chosen[i] = nullptr;
+  s_select_24th_button = nullptr;
 }

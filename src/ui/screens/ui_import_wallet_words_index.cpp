@@ -11,6 +11,7 @@
 #include "ui/screens/ui_import_wallet_method.h"
 #include "ui/screens/ui_wallet_display_seed.h"
 #include "ui/screens/ui_import_wallet_words_index.h"
+#include "ui/screens/ui_import_wallet_words_24th_word.h"
 #include "ui/theme/ui_theme.h"
 #include "ui/ui_nav.h"
 #include "ui/text/ui_text.h"
@@ -24,6 +25,9 @@ static int s_indexes[24];
 static lv_obj_t *s_progress = nullptr;
 static lv_obj_t *s_box = nullptr;
 static lv_obj_t *s_hint = nullptr;
+
+static void refresh(void);
+static void ui_import_wallet_words_index_show_screen(void);
 
 static const char *word_for_index(int index) {
   if (index < 0 || index >= bip39_word_count()) return nullptr;
@@ -65,8 +69,6 @@ static void finish_import(void) {
     result.word_indexes[i] = static_cast<uint16_t>(s_indexes[i]);
   }
   if (!result.success) {
-    //clear_digits();
-    //refresh();
     lv_label_set_text(s_hint, TR("Incorrect 24th index"));
     return;
   }
@@ -84,9 +86,15 @@ static void accept_index(void) {
   s_chosen[s_word] = word;
   s_indexes[s_word] = static_cast<int>(value);
   clear_digits();
-  if (s_word < 23) {
+  if (s_word < 22) {
     s_word++;
     refresh();
+    return;
+  }
+  if (s_word == 22) {
+    // Just entered the 23rd word; go to 24th-word selector
+    s_word = 23;
+    ui_import_wallet_words_24th_word_show(3); // index mode
     return;
   }
   finish_import();
@@ -137,6 +145,30 @@ static lv_obj_t *add_key(lv_obj_t *parent, const char *text, int x, int y, int w
   return button;
 }
 
+void ui_import_wallet_words_index_choose_word(const char *word) {
+  if (s_word < 24) {
+    s_chosen[s_word] = word;
+    s_indexes[s_word] = bip39_word_index(word, BIP39_EN);
+  }
+  clear_digits();
+  if (s_word < 23) {
+    s_word++;
+    ui_import_wallet_words_index_resume();
+    return;
+  }
+  finish_import();
+}
+
+const char *ui_import_wallet_words_index_chosen(int index) {
+  if (index < 0 || index >= 24) return nullptr;
+  return s_chosen[index];
+}
+
+void ui_import_wallet_words_index_resume(void) {
+  clear_digits();
+  ui_import_wallet_words_index_show_screen();
+}
+
 void ui_import_wallet_words_index_show(void) {
   s_word = 0;
   clear_digits();
@@ -144,7 +176,10 @@ void ui_import_wallet_words_index_show(void) {
     s_chosen[i] = nullptr;
     s_indexes[i] = 0;
   }
+  ui_import_wallet_words_index_show_screen();
+}
 
+static void ui_import_wallet_words_index_show_screen(void) {
   lv_obj_t *screen = ui_make_screen();
 
   ui_make_title(screen, TR("Import Wallet"));
@@ -185,6 +220,7 @@ void ui_import_wallet_words_index_show(void) {
   refresh();
   ui_screen_replace(screen);
 }
+
 void ui_import_wallet_words_index_wipe(void) {
   secure_wipe(s_digits, sizeof(s_digits));
   secure_wipe(s_indexes, sizeof(s_indexes));
