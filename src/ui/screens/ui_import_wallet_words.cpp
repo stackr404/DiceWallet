@@ -173,10 +173,15 @@ static void finish_import(void) {
   }
   result.success = bip39_checksum_valid_indices(indexes, 24, BIP39_EN);
   if (!result.success) {
+    secure_wipe(&result, sizeof(result));
+    secure_wipe(indexes, sizeof(indexes));
     ui_import_wallet_words_resume();
     return;
   }
+  secure_wipe(indexes, sizeof(indexes));
   wallet_set_generation(result);
+  // wallet_set_generation() keeps its own copy; wipe this stack one.
+  secure_wipe(&result, sizeof(result));
   ui_wallet_display_seed_show(true);
 }
 

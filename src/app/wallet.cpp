@@ -31,6 +31,13 @@ void wallet_add_roll(int face) {
   roll_count++;
 }
 
+bool wallet_remove_last_roll(void) {
+  if (roll_count <= 0) return false;
+  roll_count--;
+  secure_wipe(&rolls[roll_count], sizeof(rolls[roll_count]));
+  return true;
+}
+
 int wallet_roll_count(void) {
   return roll_count;
 }

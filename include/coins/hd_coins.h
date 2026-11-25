@@ -103,12 +103,16 @@ inline uint32_t hd_hardened(uint32_t i) {
  * Ed25519, Cardano, Monero, sr25519, and Canton return "".
  *
  * Empty passphrase is the normal "no 25th word" case.
+ * If master_fingerprint_out is not null it receives the BIP32 master key
+ * fingerprint (first 4 bytes of HASH160 of the master public key), or zeros
+ * on failure.
  * Returns empty String on failure.
  */
 String derive_account_xpub(const wallet_generation_result& wallet,
                          const String& passphrase,
                          const hd_watch_coin& coin,
-                         uint32_t account);
+                         uint32_t account,
+                         uint8_t master_fingerprint_out[4] = nullptr);
 
 
 

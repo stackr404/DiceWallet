@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License" /></a>
-  <img src="https://img.shields.io/badge/version-0.1.0-black" alt="Version 0.1.0" />
+  <img src="https://img.shields.io/badge/version-0.2.0-black" alt="Version 0.2.0" />
   <a href="https://github.com/stackr404/DiceWallet/issues"><img src="https://img.shields.io/github/issues/stackr404/DiceWallet?style=flat&color=2EA44F" alt="GitHub Issues" /></a>
 </p>
 
@@ -55,11 +55,11 @@
 
 When creating a new wallet it turns 100 to 200 physical six-sided dice rolls into a BIP39 seed phrase, then shows watch-only extended public keys (xpubs) as QR codes. 
 
-The design prioritizes **verifiable entropy** and a short secret lifetime. This build compiles out Wi-Fi and Bluetooth and disables serial at boot. Secrets are held in RAM for the session and wiped on exit. The device does not store a seed in flash. Only xpubs are shown on screen, so another wallet (e.g. phone app) can import a watch-only wallet to view receive-only addresses.
+The design prioritizes **verifiable entropy** and a short secret lifetime. The firmware never starts the Wi-Fi or Bluetooth radio and disables serial at boot. Secrets are held in RAM for the session and wiped on exit. The device does not store a seed in flash. Only xpubs are shown on screen, so another wallet (e.g. phone app) can import a watch-only wallet to view receive-only addresses.
 
 To spend you would need to import the 24 word BIP39 mnemonic seed phrase into another wallet. This wallet does not reveal private keys, nor does it sign transactions.
 
-Version: **0.1.0** (experimental; not a 1.0 release)
+Version: **0.2.0** (experimental; not a 1.0 release)
 
 ---
 
@@ -211,7 +211,7 @@ After a seed is loaded (generated or imported), the device can derive and displa
 | Ethereum   | `m/44'/60'/0'`    | xpub          | BIP44                  |
 | XRP        | `m/44'/144'/0'`   | xpub          | BIP44                  |
 
-An optional BIP39 passphrase is supported and is wiped from memory after use.
+An optional BIP39 passphrase is supported and is wiped from memory after use. Under each xpub the device shows its key origin, for example `[73c5da0a/84'/0'/0']`. The first 8 hex characters are the master key fingerprint. It changes with every passphrase, so write it down with the seed: if a later session shows a different fingerprint, a different passphrase was typed.
 
 ### Settings
 
@@ -222,14 +222,15 @@ An optional BIP39 passphrase is supported and is wiped from memory after use.
   - Auto-wipe timer (device wipes secrets after a configurable number of minutes of inactivity).
   - Manual secure wipe.
   - Exit / secure shutdown screen.
-- **About** — Firmware version and the SHA-256 of the running app image. Compare this hex to the published `firmware.sha256`.
+- **About** — Firmware version and the SHA-256 of the running app image, plus the Secure Boot state. Compare this hex to the published `firmware.sha256`. The running firmware reports this hash itself, so it only proves something when the line below it reads **Secure Boot On**: then the bootloader refused to start anything not signed by the release key. With Secure Boot off, modified firmware could show any hash.
+- **Pre-delivery** — Burns the JTAG, UART-download, Bluetooth and ROM-console eFuses. It asks for confirmation first and refuses while Secure Boot is off, because burning `UART_DOWNLOAD_DIS` ends USB updates for good without protecting the flash.
 
 ### Security Hardening
 
-- Wi-Fi and Bluetooth are compiled out (`CONFIG_BT_ENABLED=n`, `CONFIG_ESP_WIFI_ENABLED=n`).
+- The firmware never initializes Wi-Fi or Bluetooth. The prebuilt Arduino libraries still contain the radio drivers; the Pre-delivery screen can burn the `DISABLE_BT` eFuse.
 - Serial is disabled at boot.
 - Secrets (rolls, mnemonic word pointers/indexes, passphrase, import buffers) are wiped with volatile stores that the compiler cannot optimize away.
-- On every screen transition, all label and textarea text in RAM is securely wiped before the old screen is deleted.
+- LVGL allocates from a wiping allocator (`src/app/lv_secure_alloc.cpp`): every block is zeroed when it is freed or moved by a realloc, so old label and textarea text (seed words, indexes, passphrase) does not stay in freed memory. Label and textarea text is also wiped before a screen is deleted.
 - Additional scrubbing of free heap blocks, abandoned stack frames, the framebuffer, and the display GRAM.
 - Optional automatic wipe after inactivity.
 - Firmware can check whether UART download mode has been permanently disabled via eFuse.
@@ -251,9 +252,11 @@ Before a new wallet is accepted, the entered sequence (100–200 rolls, dependin
 | **Autocorrelation**   | Correlation at various lags                  | Hidden dependence             |
 
 **Verdict logic**:
-- Chi-square fails → **Error** (user must start over).
+- Chi-square fails (5% level) → **Error** (user must start over).
 - Chi-square passes but any other test fails → **Warning** (user may continue or re-roll).
 - All tests pass → **Success**.
+
+Each warning test uses a 1% level, so with an honest die about 4% of sequences get a warning (and about 5% get the chi-square error). The serial test is Good's serial statistic (36 − 6 = 30 degrees of freedom), because overlapping pairs are not independent; the poker test pools the rare hands into one class; the longest-run limits depend on the roll count; and the gap test also flags too few immediate repeats, which is how most made-up sequences give themselves away. `test/test_dice` checks the false-warning rate and a few made-up sequences.
 
 This gives the user transparent, quantitative feedback about the quality of their entropy source.
 
@@ -462,7 +465,7 @@ On every transition away from a secret screen, the device performs a multi-stage
 
 ## Design Principles
 
-- **No network stack in this build** — Wi-Fi and Bluetooth are compiled out, and serial is disabled at boot. The ESP32 radio silicon, ROM bootloader, and USB-UART bridge are still on the board.
+- **No network use** — The firmware never starts Wi-Fi or Bluetooth, and serial is disabled at boot. The ESP32 radio silicon, ROM bootloader, and USB-UART bridge are still on the board.
 - **Verifiable entropy** — The user enters physical dice rolls. Statistical tests are a warning aid, not a proof that a die was fair.
 - **Minimal secret lifetime** — Secrets exist in RAM while the device is powered on and are wiped on exit. They are not written to NVS.
 - **Watch-only UI** — The screen shows xpubs. 
@@ -473,83 +476,73 @@ On every transition away from a secret screen, the device performs a multi-stage
 
 ## Secure Boot
 
-Secure boot is a separate build. `pio run` stays unsigned. The secure environment signs the bootloader and the app with a key that is not in the repository.
+Secure boot is a separate environment, `esp32dev_secure`. The default `esp32dev` build is unsigned and leaves Secure Boot off.
 
-This needs an ESP32 revision v3.0 or later. Check with `espefuse summary` before flashing a board. Secure Boot v2 is not available on older ESP32 modules.
+Secure Boot v2 needs a bootloader built with `CONFIG_SECURE_BOOT`. A plain `framework = arduino` build always uses Arduino's prebuilt bootloader, which never checks signatures, and ignores any sdkconfig. So `esp32dev_secure` builds Arduino as an ESP-IDF component (`framework = arduino, espidf`). Its IDF settings are in `sdkconfig.defaults`, and its partition table is `partitions_secure.csv` (table at `0xD000`, because the secure bootloader is larger). PlatformIO builds the secure bootloader and signs the bootloader, partition table and app.
 
-To check the status of the ESP eFuses run this command (your port may differ):
-
-```bash
-~/.Dice Wallet/esptools/bin/espefuse --port /dev/ttyUSB0 summary
-```
-
-To build:
+This needs an ESP32 revision v3.0 or later. Secure Boot v2 is not available on older ESP32 chips. Check first (your port may differ):
 
 ```bash
-pio run -e esp32dev_secure
+espefuse --port /dev/ttyUSB0 summary
 ```
-
-To build and upload signed bootloader, partitions, and app run the following command. After a successful upload your board will only be able to run firmware signed with your private key. Also there is a change of bricking the board.
-
-```bash
-pio run -e esp32dev_secure -t upload-signed
-```
-
-
-
 
 ### Signing Key
 
-The PEM lives outside the tree:
+The private key lives outside the repository, at:
 
 ```text
-~/.Dice Wallet/secure_boot_signing_key.pem
+~/.dicewallet/secure_boot_signing_key.pem
 ```
 
-Or set the `Dice Wallet_SIGNING_KEY` env setting to its path. `scripts/sign_firmware.py` uses that key. If it is missing, the secure build prints `secure boot: key not present, image unsigned` and does not sign.
+Or set the `DICEWALLET_SIGNING_KEY` environment variable to its path. `scripts/ask_signing_key.py` looks for it before the build. If the key is missing, the secure build **stops** with an error; it never produces an unsigned "secure" image.
 
 Generate it once, on a machine you keep the key on:
 
 ```bash
-mkdir -p ~/.Dice Wallet
-espsecure generate-signing-key --version 2 ~/.Dice Wallet/secure_boot_signing_key.pem
-chmod 600 ~/.Dice Wallet/secure_boot_signing_key.pem
+mkdir -p ~/.dicewallet
+espsecure generate-signing-key --version 2 --scheme rsa3072 ~/.dicewallet/secure_boot_signing_key.pem
+chmod 600 ~/.dicewallet/secure_boot_signing_key.pem
 ```
 
-Losing this file bricks every board whose digest was burned from it. Keep an offline copy. Do not commit it.
+Losing this file means no new firmware can ever be installed on a board whose digest was burned from it. Keep an offline copy. Do not commit it (`.gitignore` excludes every `*.pem` except the public key).
 
-### What the build writes
+### Build and flash
+
+```bash
+pio run -e esp32dev_secure            # build and sign
+pio run -e esp32dev_secure -t upload  # flash signed bootloader, partition table and app
+```
 
 The signed files are under `.pio/build/esp32dev_secure/`:
 
 ```text
-bootloader.signed.bin
-firmware.signed.bin
-Dice Wallet-<version>-esp32dev_secure.signed.bin
+bootloader-signed.bin
+partitions-signed.bin
+firmware-signed.bin
+dicewallet-<version>-esp32dev_secure.signed.bin   (copy of firmware-signed.bin for releases)
 ```
 
-Signing appends a signature block. It does not change the app validation hash. The About screen still shows that hash.
+Signing appends a signature block. It does not change the app validation hash, so the About screen still shows the hash that `firmware.sha256` lists.
 
-### First flash
-
-The build does not burn fuses. `pio run -e esp32dev_secure -t upload` writes the app. With secure boot enabled it does not write the bootloader. Flash the signed bootloader yourself, then the app:
-
-```bash
-~/.Dice Wallet/esptools/bin/esptool.py --port /dev/ttyUSB0 write_flash 0x1000 .pio/build/esp32dev_secure/bootloader.signed.bin
-pio run -e esp32dev_secure -t upload
-```
-
-Reset the board and watch the serial log. On that first boot the signed bootloader writes the key digest into `BLOCK2` and burns `ABS_DONE_1`. After that, only images signed by this key will start.
+On the first boot the secure bootloader writes the key digest into `BLOCK2` and burns `ABS_DONE_1`. After that, only images signed by this key will start. This is permanent.
 
 ### Verify
 
 ```bash
-~/.Dice Wallet/esptools/bin/espefuse --port /dev/ttyUSB0 summary
+espefuse --port /dev/ttyUSB0 summary
 ```
 
-Secure boot is on when `ABS_DONE_1` is True and `BLOCK2` is no longer all zeros. The splash screen reads the same fuse and shows **Secure Boot On** or **Secure Boot Off**.
+Secure boot is on when `ABS_DONE_1` is True and `BLOCK2` is no longer all zeros. The splash screen and the About screen show **Secure Boot On** or **Secure Boot Off**.
 
 Do not burn `ABS_DONE_1` by hand. Let the bootloader do it, so the digest matches the key that signed the image.
+
+To check a release file against the public key:
+
+```bash
+espsecure verify-signature --version 2 \
+  --keyfile secure/dicewallet-secure-boot.pub.pem \
+  dicewallet-<version>-esp32dev_secure.signed.bin
+```
 
 ---
 
@@ -563,7 +556,7 @@ Do not burn `ABS_DONE_1` by hand. Let the bootloader do it, so the digest matche
 
 The seed is not written to flash. It exists in RAM for the session and is wiped on exit. Power-off drops it. A later dump of the flash does not contain any secret data.
 
-Remote attack is not feasible. This build compiles out Wi-Fi and Bluetooth. An attacker needs physical access to the device itself.
+Remote attack is not feasible. The firmware never starts Wi-Fi or Bluetooth. An attacker needs physical access to the device itself.
 
 #### Entropy weakness
 
@@ -585,7 +578,7 @@ That leaves the powered-on window. The attacker has to have physical access and 
 
 #### Without secure boot
 
-There is no signature check, so a different image will run. Before the seed is entered, the attacker replaces the firmware. The user then enters rolls or a mnemonic into that image. Burning the UART-download fuse closes the normal write path. It does not help if the attacker can reflash the chip another way, and it does not help if the image was already malicious when it was flashed. The About-screen hash is how the user checks the image before entering a secret.
+There is no signature check, so a different image will run. Before the seed is entered, the attacker replaces the firmware. The user then enters rolls or a mnemonic into that image. Burning the UART-download fuse closes the normal write path. It does not help if the attacker can reflash the chip another way, and it does not help if the image was already malicious when it was flashed. The About-screen hash does not help here: the replaced firmware reports whatever hash it likes. Only Secure Boot lets the device prove which image is running.
 
 The powered-on window is the same as with secure boot. A running device with the seed in RAM can be read. Power-off ends that window.
 

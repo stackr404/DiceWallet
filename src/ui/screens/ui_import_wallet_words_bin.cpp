@@ -16,6 +16,16 @@
 
 static const int kBits = 11;
 
+// Previously entered words shown as dots above the input row, like the
+// printed sheet: black = 1, white = 0. Columns line up with the bit boxes.
+static const int kBox = 18;
+static const int kBoxGap = 2;
+static const int kRowWidth = kBits * kBox + (kBits - 1) * kBoxGap;
+static const int kHistoryRows = 3;
+static const int kDot = 8;
+static const int kDotPitch = 10;
+static const int kHistoryPad = 3;
+
 static int s_word = 0;
 static int s_bits[kBits];
 static bool s_set[kBits];
@@ -29,6 +39,7 @@ static lv_obj_t *s_box_labels[kBits];
 static lv_obj_t *s_carets[kBits];
 static lv_obj_t *s_hint = nullptr;
 static lv_obj_t *s_select_24th_button = nullptr;
+static lv_obj_t *s_history = nullptr;
 static void refresh(void);
 static void ui_import_wallet_words_bin_show_screen(void);
 
@@ -58,6 +69,52 @@ static void clear_bits(void) {
   }
 }
 
+static void draw_history(lv_event_t *event) {
+  if (lv_event_get_code(event) != LV_EVENT_DRAW_MAIN) return;
+  lv_obj_t *obj = static_cast<lv_obj_t *>(lv_event_get_target(event));
+  lv_layer_t *layer = lv_event_get_layer(event);
+  lv_area_t coords;
+  lv_obj_get_coords(obj, &coords);
+
+  // White "paper" background so black dots stand out on the dark theme.
+  lv_draw_rect_dsc_t paper;
+  lv_draw_rect_dsc_init(&paper);
+  paper.bg_opa = LV_OPA_COVER;
+  paper.bg_color = lv_color_white();
+  paper.radius = 4;
+  lv_draw_rect(layer, &paper, &coords);
+
+  lv_draw_rect_dsc_t dot;
+  lv_draw_rect_dsc_init(&dot);
+  dot.bg_opa = LV_OPA_COVER;
+  dot.radius = LV_RADIUS_CIRCLE;
+  dot.border_color = lv_color_hex(UI_COLOR_MUTED);
+
+  // Most recent word on the bottom row, directly above the input boxes.
+  const int shown = s_word < kHistoryRows ? s_word : kHistoryRows;
+  const int first_row = kHistoryRows - shown;
+  const int dot_inset = (kBox - kDot) / 2;
+  for (int r = 0; r < shown; r++) {
+    const int value = s_indexes[s_word - shown + r];
+    const int y = coords.y1 + kHistoryPad + (first_row + r) * kDotPitch;
+    for (int i = 0; i < kBits; i++) {
+      const bool one = (value >> (kBits - 1 - i)) & 1;
+      dot.bg_color = one ? lv_color_black() : lv_color_white();
+      dot.border_width = one ? 0 : 1;
+      lv_area_t area;
+      area.x1 = coords.x1 + kHistoryPad + i * (kBox + kBoxGap) + dot_inset;
+      area.y1 = y;
+      area.x2 = area.x1 + kDot - 1;
+      area.y2 = area.y1 + kDot - 1;
+      lv_draw_rect(layer, &dot, &area);
+    }
+  }
+}
+
+static void on_history_deleted(lv_event_t *event) {
+  if (lv_event_get_target(event) == s_history) s_history = nullptr;
+}
+
 static void refresh(void) {
   char line[48];
   snprintf(line, sizeof(line), TR("Word Index %d of 24"), s_word + 1);
@@ -74,6 +131,8 @@ static void refresh(void) {
     lv_obj_set_style_border_color(s_boxes[i], lv_color_hex(active ? UI_COLOR_TITLE : UI_COLOR_MUTED), 0);
     if (s_carets[i]) lv_label_set_text(s_carets[i], active ? "^" : "");
   }
+
+  if (s_history) lv_obj_invalidate(s_history);
 
   if (s_select_24th_button) {
     lv_obj_set_hidden(s_select_24th_button, s_word != 23);
@@ -97,10 +156,13 @@ static void finish_import(void) {
     result.word_indexes[i] = static_cast<uint16_t>(s_indexes[i]);
   }
   if (!result.success) {
+    secure_wipe(&result, sizeof(result));
     lv_label_set_text(s_hint, TR("Incorrect 24th index"));
     return;    
   }
   wallet_set_generation(result);
+  // wallet_set_generation() keeps its own copy; wipe this stack one.
+  secure_wipe(&result, sizeof(result));
   ui_wallet_display_seed_show(true);
 }
 
@@ -224,11 +286,22 @@ static void ui_import_wallet_words_bin_show_screen(void) {
   lv_obj_set_style_text_color(s_progress, lv_color_hex(UI_COLOR_TEXT), 0);
   lv_obj_align(s_progress, LV_ALIGN_TOP_MID, 0, 45);
 
-  const int box = 18;
-  const int gap = 2;
-  const int row_w = kBits * box + (kBits - 1) * gap;
-  const int origin_x = (240 - row_w) / 2;
-  const int origin_y = 72;
+  const int box = kBox;
+  const int gap = kBoxGap;
+  const int origin_x = (240 - kRowWidth) / 2;
+  const int history_y = 64;
+  const int history_h = 2 * kHistoryPad + (kHistoryRows - 1) * kDotPitch + kDot;
+  const int origin_y = history_y + history_h + 4;
+
+  s_history = lv_obj_create(screen);
+  lv_obj_remove_style_all(s_history);
+  lv_obj_set_size(s_history, kRowWidth + 2 * kHistoryPad, history_h);
+  lv_obj_set_pos(s_history, origin_x - kHistoryPad, history_y);
+  lv_obj_set_scrollable(s_history, false);
+  lv_obj_set_clickable(s_history, false);
+  lv_obj_add_event_cb(s_history, draw_history, LV_EVENT_DRAW_MAIN, nullptr);
+  lv_obj_add_event_cb(s_history, on_history_deleted, LV_EVENT_DELETE, nullptr);
+
   for (int i = 0; i < kBits; i++) {
     s_boxes[i] = lv_obj_create(screen);
     lv_obj_set_size(s_boxes[i], box, 28);
@@ -254,23 +327,26 @@ static void ui_import_wallet_words_bin_show_screen(void) {
   s_hint = lv_label_create(screen);
   lv_obj_set_style_text_font(s_hint, UI_FONT(14), 0);
   lv_obj_set_style_text_color(s_hint, lv_color_hex(UI_COLOR_MUTED), 0);
-  lv_obj_align(s_hint, LV_ALIGN_TOP_MID, 0, 117);
+  lv_obj_align(s_hint, LV_ALIGN_TOP_MID, 0, origin_y + 44);
 
   const int key_w = 70;
-  const int key_h = 36;
+  const int key_h = 32;
   const int key_gap = 8;
   const int keys_w = key_w * 3 + key_gap * 2;
   const int key_x = (240 - keys_w) / 2;
-  // Moved <, Flip, > and OK up a little to make space
-  add_key(screen, TR("<"), key_x, 140, key_w, key_h, on_left);
-  add_key(screen, TR("Flip"), key_x + key_w + key_gap, 140, key_w, key_h, on_flip);
-  add_key(screen, TR(">"), key_x + 2 * (key_w + key_gap), 140, key_w, key_h, on_right);
-  add_key(screen, TR("OK"), key_x, 186, keys_w, key_h, on_ok);
-  // New Select 24th Word button, only visible on 24th word
-  s_select_24th_button = add_key(screen, TR("Select 24th Word"), key_x, 232, keys_w, key_h, on_select_24th);
+  const int row_gap = 6;
+  const int keys_y = origin_y + 62;
+  const int ok_y = keys_y + key_h + row_gap;
+  const int select_y = ok_y + key_h + row_gap;
+  const int cancel_y = select_y + key_h + row_gap;
+  add_key(screen, TR("<"), key_x, keys_y, key_w, key_h, on_left);
+  add_key(screen, TR("Flip"), key_x + key_w + key_gap, keys_y, key_w, key_h, on_flip);
+  add_key(screen, TR(">"), key_x + 2 * (key_w + key_gap), keys_y, key_w, key_h, on_right);
+  add_key(screen, TR("OK"), key_x, ok_y, keys_w, key_h, on_ok);
+  // Select 24th Word button, only visible on the 24th word
+  s_select_24th_button = add_key(screen, TR("Select 24th Word"), key_x, select_y, keys_w, key_h, on_select_24th);
   lv_obj_set_hidden(s_select_24th_button, true);
-  // Moved Cancel down a little
-  add_key(screen, TR("Cancel"), key_x, 278, keys_w, key_h, on_cancel);
+  add_key(screen, TR("Cancel"), key_x, cancel_y, keys_w, key_h, on_cancel);
 
   refresh();
   ui_screen_replace(screen);
@@ -284,4 +360,5 @@ void ui_import_wallet_words_bin_wipe(void) {
   s_word = 0;
   for (int i = 0; i < 24; ++i) s_chosen[i] = nullptr;
   s_select_24th_button = nullptr;
+  s_history = nullptr;
 }

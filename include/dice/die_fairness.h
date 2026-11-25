@@ -27,6 +27,8 @@ struct gap_result {
   bool  is_too_uniform;
   float average_gap;
   float gap_variance;
+  int   immediate_repeats;  // rolls equal to the one before (a gap of 1)
+  float repeat_z;           // vs. the (n-1)/6 a fair die gives; very negative = person avoiding repeats
 };
 
 struct longest_run_result {

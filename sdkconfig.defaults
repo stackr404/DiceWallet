@@ -1,0 +1,36 @@
+# ESP-IDF settings for the esp32dev_secure environment (framework = arduino, espidf).
+# The plain esp32dev environment is Arduino-only and does not read this file.
+
+# Arduino as an ESP-IDF component
+CONFIG_AUTOSTART_ARDUINO=y
+CONFIG_ARDUINO_VARIANT="esp32"
+CONFIG_FREERTOS_HZ=1000
+CONFIG_MBEDTLS_PSK_MODES=y
+CONFIG_MBEDTLS_KEY_EXCHANGE_PSK=y
+
+# Crypto used by hd_coins.cpp. RIPEMD-160 comes from src/third_party/ripemd160.c,
+# so keep the Mbed TLS one off to avoid a duplicate symbol.
+CONFIG_MBEDTLS_ECP_DP_SECP256K1_ENABLED=y
+CONFIG_MBEDTLS_RIPEMD160_C=n
+
+# Flash
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+
+# Secure Boot v2 (RSA-3072). Needs ESP32 silicon revision v3.0 or later.
+CONFIG_ESP32_REV_MIN_3=y
+CONFIG_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_V2_ENABLED=y
+# PlatformIO signs the bootloader, partition table and app with the key that
+# scripts/ask_signing_key.py finds. The value below is only a placeholder;
+# PlatformIO passes the real path to the bootloader build.
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+# `pio run -t upload` also writes the signed bootloader.
+CONFIG_SECURE_BOOT_FLASH_BOOTLOADER_DEFAULT=y
+
+# The Secure Boot bootloader is larger than the default 0x7000 window.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_secure.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions_secure.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0xD000

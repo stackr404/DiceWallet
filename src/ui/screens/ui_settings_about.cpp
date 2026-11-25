@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <esp_secure_boot.h>
 #include <lvgl.h>
 #include "ui/screens/ui_helper.h"
 #include "ui/screens/ui_settings_about.h"
@@ -44,11 +45,16 @@ void ui_settings_about_show(void) {
 
   char hash_hex[65];
   firmware_hash_hex(hash_hex);
-  char hash_lines[96];
+  char hash_lines[128];
   // 16 hex chars fit in Montserrat 12. A 32-char line wraps its last glyph.
-  snprintf(hash_lines, sizeof(hash_lines), "%s\n%.16s\n%.16s\n%.16s\n%.16s",
+  // The running firmware reports this hash itself, so a modified firmware could
+  // show any value. It only proves something when Secure Boot is on, because
+  // then the bootloader refused to start anything not signed by the release key.
+  // Plain ASCII: this label uses Montserrat 12, which has no CJK/Cyrillic glyphs.
+  const char *trust = esp_secure_boot_enabled() ? "Secure Boot On" : "Secure Boot Off: unverified";
+  snprintf(hash_lines, sizeof(hash_lines), "%s\n%.16s\n%.16s\n%.16s\n%.16s\n%s",
            TR("Firmware SHA-256"),
-           hash_hex, hash_hex + 16, hash_hex + 32, hash_hex + 48);
+           hash_hex, hash_hex + 16, hash_hex + 32, hash_hex + 48, trust);
   lv_obj_t *hash = lv_label_create(screen);
   lv_label_set_text(hash, hash_lines);
   lv_obj_set_width(hash, 220);
@@ -56,7 +62,7 @@ void ui_settings_about_show(void) {
   lv_obj_set_style_text_align(hash, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(hash, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_color(hash, lv_color_hex(UI_COLOR_TEXT), 0);
-  lv_obj_align(hash, LV_ALIGN_TOP_MID, 0, 180);
+  lv_obj_align(hash, LV_ALIGN_TOP_MID, 0, 176);
 
   lv_obj_t *button = lv_button_create(screen);
   lv_obj_set_size(button, UI_BUTTON_FULL_WIDTH, UI_BUTTON_HEIGHT);

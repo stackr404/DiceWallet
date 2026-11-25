@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <lvgl.h>
 #include "ui/screens/ui_helper.h"
 #include "ui/screens/ui_wallet_view_public_keys.h"
@@ -14,11 +15,24 @@
 static void show_coin(const char *title, const hd_watch_coin &coin) {
   wallet_generation_result w = wallet_generation();
   String pass(ui_wallet_passphrase());
-  String xpub = derive_account_xpub(w, pass, coin, 0);
-  ui_wallet_view_public_key_show(title, xpub.c_str(), coin.note);
+  uint8_t fp[4] = {0, 0, 0, 0};
+  String xpub = derive_account_xpub(w, pass, coin, 0, fp);
   secure_wipe(&w, sizeof(w));
   if (pass.length() > 0) secure_wipe(const_cast<char *>(pass.c_str()), pass.length());
   pass = "";
+
+  // Key origin in descriptor form, e.g. [73c5da0a/84'/0'/0']. The master
+  // fingerprint changes with every passphrase, so writing it down next to the
+  // seed shows later whether the same passphrase was typed.
+  char origin[48];
+  const char *path = coin.note != nullptr ? coin.note : "";
+  if (path[0] == 'm') path++;  // "m/84'/0'/0'" -> "/84'/0'/0'"
+  if (xpub.length() > 0) {
+    snprintf(origin, sizeof(origin), "[%02x%02x%02x%02x%s]", fp[0], fp[1], fp[2], fp[3], path);
+  } else {
+    snprintf(origin, sizeof(origin), "%s", coin.note != nullptr ? coin.note : "");
+  }
+  ui_wallet_view_public_key_show(title, xpub.c_str(), origin);
 }
 
 static void on_btc(lv_event_t *event)

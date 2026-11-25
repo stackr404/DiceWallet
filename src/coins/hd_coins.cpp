@@ -231,7 +231,9 @@ static void free_ecp(mbedtls_mpi* d, mbedtls_ecp_point* Q, mbedtls_ecp_group* se
 String derive_account_xpub(const wallet_generation_result& wallet,
                          const String& passphrase,
                          const hd_watch_coin& coin,
-                         uint32_t account) {
+                         uint32_t account,
+                         uint8_t master_fingerprint_out[4]) {
+    if (master_fingerprint_out != nullptr) memset(master_fingerprint_out, 0, 4);
     if (coin.algo != HD_ALGO_BIP32_SECP256K1 || !coin.this_firmware) {
         HD_FAIL("unsupported HD_WATCH_COINS row", (int)coin.algo);
     }
@@ -316,17 +318,6 @@ String derive_account_xpub(const wallet_generation_result& wallet,
     memcpy(chain, masterHmac + 32, 32);
     secure_wipe(masterHmac, sizeof(masterHmac));
 
-    if (!derive_hardened_child(key, chain, hd_hardened(coin.purpose),  key, chain)) {
-        secure_wipe(key, sizeof(key));
-        secure_wipe(chain, sizeof(chain));
-        HD_FAIL("ckd purpose'", 0);
-    }
-    if (!derive_hardened_child(key, chain, hd_hardened(coin.coin_type), key, chain)) {
-        secure_wipe(key, sizeof(key));
-        secure_wipe(chain, sizeof(chain));
-        HD_FAIL("ckd coin_type'", 0);
-    }
-
     mbedtls_ecp_group secp;
     mbedtls_ecp_point Q;
     mbedtls_mpi d;
@@ -340,6 +331,39 @@ String derive_account_xpub(const wallet_generation_result& wallet,
         secure_wipe(key, sizeof(key));
         secure_wipe(chain, sizeof(chain));
         HD_FAIL("ecp_group_load secp256k1", ret);
+    }
+
+    // Master key fingerprint: first 4 bytes of HASH160(master public key).
+    // Shown next to the xpub so a mistyped passphrase (a different wallet) is
+    // noticed, and so the key origin [fingerprint/path] can be given to wallets.
+    if (master_fingerprint_out != nullptr) {
+        uint8_t masterPub[33];
+        uint8_t masterHash[20];
+        ret = priv_to_compressed_pub(key, masterPub, &secp, &Q, &d);
+        const bool fp_ok = ret == 0 && compute_hash_160(masterPub, 33, masterHash);
+        secure_wipe(masterPub, sizeof(masterPub));
+        if (!fp_ok) {
+            free_ecp(&d, &Q, &secp);
+            secure_wipe(key, sizeof(key));
+            secure_wipe(chain, sizeof(chain));
+            secure_wipe(masterHash, sizeof(masterHash));
+            HD_FAIL("master fingerprint", ret);
+        }
+        memcpy(master_fingerprint_out, masterHash, 4);
+        secure_wipe(masterHash, sizeof(masterHash));
+    }
+
+    if (!derive_hardened_child(key, chain, hd_hardened(coin.purpose),  key, chain)) {
+        free_ecp(&d, &Q, &secp);
+        secure_wipe(key, sizeof(key));
+        secure_wipe(chain, sizeof(chain));
+        HD_FAIL("ckd purpose'", 0);
+    }
+    if (!derive_hardened_child(key, chain, hd_hardened(coin.coin_type), key, chain)) {
+        free_ecp(&d, &Q, &secp);
+        secure_wipe(key, sizeof(key));
+        secure_wipe(chain, sizeof(chain));
+        HD_FAIL("ckd coin_type'", 0);
     }
 
     uint8_t parentPubKey[33];
@@ -516,14 +540,18 @@ struct DerivedNode {
     uint8_t key[32];
 };
 
-static DerivedNode derive_node_from_seed(const uint8_t* seed, size_t seed_len, const char* path) {
-    DerivedNode node = {};
-    if (!seed || !path || seed_len == 0 || seed_len > 64) return node;
-    if (path[0] != 'm' || (path[1] != '\0' && path[1] != '/')) return node;
+// Fills *out in place. Returning the node by value would leave copies of the
+// private key and chain code in stack slots that are never wiped.
+static void derive_node_from_seed(const uint8_t* seed, size_t seed_len, const char* path,
+                                  DerivedNode* out) {
+    DerivedNode& node = *out;
+    secure_wipe(&node, sizeof(node));
+    if (!seed || !path || seed_len == 0 || seed_len > 64) return;
+    if (path[0] != 'm' || (path[1] != '\0' && path[1] != '/')) return;
 
     uint8_t masterHmac[64];
     if (!hmac_sha_512(reinterpret_cast<const uint8_t*>("Bitcoin seed"), 12, seed, seed_len, masterHmac)) {
-        return node;
+        return;
     }
     memcpy(node.key, masterHmac, 32);
     memcpy(node.chain, masterHmac + 32, 32);
@@ -539,7 +567,7 @@ static DerivedNode derive_node_from_seed(const uint8_t* seed, size_t seed_len, c
         free_ecp(&d, &Q, &secp);
         secure_wipe(node.key, sizeof(node.key));
         secure_wipe(node.chain, sizeof(node.chain));
-        return node;
+        return;
     }
 
     const char* cursor = path + 1;
@@ -552,7 +580,7 @@ static DerivedNode derive_node_from_seed(const uint8_t* seed, size_t seed_len, c
             free_ecp(&d, &Q, &secp);
             secure_wipe(node.key, sizeof(node.key));
             secure_wipe(node.chain, sizeof(node.chain));
-            return node;
+            return;
         }
         uint8_t parentPub[33];
         uint8_t hash160Out[20];
@@ -563,7 +591,7 @@ static DerivedNode derive_node_from_seed(const uint8_t* seed, size_t seed_len, c
             secure_wipe(node.chain, sizeof(node.chain));
             secure_wipe(parentPub, sizeof(parentPub));
             secure_wipe(hash160Out, sizeof(hash160Out));
-            return node;
+            return;
         }
         memcpy(node.fingerprint, hash160Out, 4);
         secure_wipe(hash160Out, sizeof(hash160Out));
@@ -576,7 +604,7 @@ static DerivedNode derive_node_from_seed(const uint8_t* seed, size_t seed_len, c
             free_ecp(&d, &Q, &secp);
             secure_wipe(node.key, sizeof(node.key));
             secure_wipe(node.chain, sizeof(node.chain));
-            return node;
+            return;
         }
         node.index = index;
         node.depth++;
@@ -584,13 +612,17 @@ static DerivedNode derive_node_from_seed(const uint8_t* seed, size_t seed_len, c
 
     free_ecp(&d, &Q, &secp);
     node.ok = true;
-    return node;
+    return;
 }
 
 String hd_derive_xpub(const uint8_t* seed, size_t seed_len, const char* path, const uint8_t version[4]) {
     if (!version) return String("");
-    DerivedNode node = derive_node_from_seed(seed, seed_len, path);
-    if (!node.ok) return String("");
+    DerivedNode node;
+    derive_node_from_seed(seed, seed_len, path, &node);
+    if (!node.ok) {
+        secure_wipe(&node, sizeof(node));
+        return String("");
+    }
 
     mbedtls_ecp_group secp;
     mbedtls_ecp_point Q;
@@ -604,12 +636,12 @@ String hd_derive_xpub(const uint8_t* seed, size_t seed_len, const char* path, co
     free_ecp(&d, &Q, &secp);
     secure_wipe(node.key, sizeof(node.key));
     if (ret != 0) {
-        secure_wipe(node.chain, sizeof(node.chain));
+        secure_wipe(&node, sizeof(node));
         secure_wipe(pub, sizeof(pub));
         return String("");
     }
     String encoded = serialize_node(version, node.depth, node.fingerprint, node.index, node.chain, pub);
-    secure_wipe(node.chain, sizeof(node.chain));
+    secure_wipe(&node, sizeof(node));
     secure_wipe(pub, sizeof(pub));
     return encoded;
 }

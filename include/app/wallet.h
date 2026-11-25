@@ -4,6 +4,8 @@
 
 void wallet_clear_rolls(void);
 void wallet_add_roll(int face);
+// Wipes and removes the most recent roll. Returns false if there are none.
+bool wallet_remove_last_roll(void);
 int wallet_roll_count(void);
 const int *wallet_rolls(void);
 

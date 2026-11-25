@@ -3,14 +3,16 @@
 #include <cmath>
 #include <algorithm>
 
-static float chi_critical(int df) {
-  switch (df) {
-    case 5:  return 11.0705f;
-    case 25: return 37.6525f;
-    case 6:  return 12.5916f;
-    default: return 11.0705f;
-  }
-}
+// Chi-square critical value at 5% (the blocking chi test) for df = 5.
+static constexpr float kChi5Df5 = 11.0705f;
+
+// The six warning tests each use a 1% level, so honest dice trigger a warning
+// about 5% of the time in total. At 5% each (plus a mis-calibrated serial test)
+// honest dice were warned about 35-38% of the time, which teaches people to
+// ignore the warning. Rates are checked by the simulation in test_dice.
+static constexpr float kZ1 = 2.5758f;           // two-sided 1% normal
+static constexpr float kChi1Df3 = 11.3449f;     // poker, 4 pooled classes
+static constexpr float kChi1Df30 = 50.8922f;    // serial (Good's statistic), 36 - 6
 
 static int face_index(int face) {
   if (face < 1) return 0;
@@ -20,7 +22,7 @@ static int face_index(int face) {
 
 chi_result calculate_chi_square(const int* roll_sequence, int total_rolls) {
   chi_result r{};
-  r.critical_value = chi_critical(5);
+  r.critical_value = kChi5Df5;
   r.expected_per_face = total_rolls > 0 ? static_cast<float>(total_rolls) / 6.0f : 0.0f;
   if (total_rolls <= 0 || roll_sequence == nullptr || r.expected_per_face <= 0.0f) {
     r.is_fair = false;
@@ -72,15 +74,19 @@ runs_result calculate_runs_test(const int* roll_sequence, int total_rolls) {
   const float variance = (2.0f * n1 * n2 * (2.0f * n1 * n2 - n)) / (n * n * (n - 1.0f));
   const float sd = variance > 0.0f ? std::sqrt(variance) : 1.0f;
   r.z_score = (static_cast<float>(runs) - expected) / sd;
-  // Two-sided 5%: |z| > 1.96. Negative z is the human-streak case; either tail fails.
-  r.is_human_faked = std::fabs(r.z_score) > 1.96f;
+  // Two-sided 1%. Negative z is the human-streak case; either tail fails.
+  r.is_human_faked = std::fabs(r.z_score) > kZ1;
   return r;
 }
 
 serial_result calculate_serial_correlation(const int* roll_sequence, int total_rolls) {
-  // Adjacent-pair chi-square against a uniform 6x6 table. df = 25.
+  // Good's serial test. The pairs overlap, so the plain 6x6 pair chi-square is
+  // not chi-square distributed (with ~3 expected per cell at n=100 it failed
+  // honest dice ~35% of the time). Good's statistic, pair chi-square minus
+  // single-face chi-square over the same n-1 positions, is chi-square with
+  // 36 - 6 = 30 degrees of freedom.
   serial_result r{};
-  r.critical_value = chi_critical(25);
+  r.critical_value = kChi1Df30;
   if (total_rolls < 2 || roll_sequence == nullptr) {
     r.has_pattern_bias = true;
     return r;
@@ -90,16 +96,27 @@ serial_result calculate_serial_correlation(const int* roll_sequence, int total_r
   for (int i = 0; i < pairs; ++i) {
     counts[face_index(roll_sequence[i])][face_index(roll_sequence[i + 1])] += 1;
   }
-  const float expected = static_cast<float>(pairs) / 36.0f;
-  float chi = 0.0f;
-  if (expected > 0.0f) {
-    for (int a = 0; a < 6; ++a) {
-      for (int b = 0; b < 6; ++b) {
-        const float d = static_cast<float>(counts[a][b]) - expected;
-        chi += (d * d) / expected;
-      }
+  // Count pairs cyclically (last roll wraps to the first) so every face
+  // appears equally often as first and second element; Good's theorem uses this.
+  counts[face_index(roll_sequence[total_rolls - 1])][face_index(roll_sequence[0])] += 1;
+  const int n = total_rolls;
+  int singles[6] = {};
+  for (int i = 0; i < n; ++i) singles[face_index(roll_sequence[i])] += 1;
+  const float e2 = static_cast<float>(n) / 36.0f;
+  const float e1 = static_cast<float>(n) / 6.0f;
+  float psi2 = 0.0f;
+  for (int a = 0; a < 6; ++a) {
+    for (int b = 0; b < 6; ++b) {
+      const float d = static_cast<float>(counts[a][b]) - e2;
+      psi2 += (d * d) / e2;
     }
   }
+  float psi1 = 0.0f;
+  for (int a = 0; a < 6; ++a) {
+    const float d = static_cast<float>(singles[a]) - e1;
+    psi1 += (d * d) / e1;
+  }
+  const float chi = psi2 - psi1;
   r.chi_square_serial = chi;
   r.has_pattern_bias = chi > r.critical_value;
   return r;
@@ -138,9 +155,21 @@ gap_result calculate_gap_test(const int* roll_sequence, int total_rolls) {
   // Expected variance for geometric waits of 6 is 30. Flag if variance is under half
   // of that, or the mean is far from 6 (more than ~2 se).
   const float se = std::sqrt(30.0f / static_cast<float>(n_gaps));
-  const bool mean_off = std::fabs(r.average_gap - 6.0f) > 1.96f * se;
+  const bool mean_off = std::fabs(r.average_gap - 6.0f) > kZ1 * se;
   const bool var_low = r.gap_variance < 15.0f;
-  r.is_too_uniform = mean_off || var_low;
+  // People inventing rolls avoid repeating the last face. A fair die repeats
+  // with probability 1/6. One-sided 0.5% test on the repeat count.
+  int repeats = 0;
+  for (int i = 1; i < total_rolls; ++i) {
+    if (roll_sequence[i] == roll_sequence[i - 1]) ++repeats;
+  }
+  const float pairs = static_cast<float>(total_rolls - 1);
+  const float expected_repeats = pairs / 6.0f;
+  const float sd_repeats = std::sqrt(pairs * (1.0f / 6.0f) * (5.0f / 6.0f));
+  r.immediate_repeats = repeats;
+  r.repeat_z = (static_cast<float>(repeats) - expected_repeats) / sd_repeats;
+  const bool too_few_repeats = r.repeat_z < -kZ1;
+  r.is_too_uniform = mean_off || var_low || too_few_repeats;
   return r;
 }
 
@@ -167,8 +196,12 @@ longest_run_result calculate_longest_run(const int* roll_sequence, int total_rol
     r.longest_low_run = std::max(r.longest_low_run, low);
     r.longest_same_face = std::max(r.longest_same_face, same);
   }
-  // For n=100, P(run of high/low >= 12) and P(same face >= 6) are small.
-  r.is_suspicious = r.longest_high_run >= 12 || r.longest_low_run >= 12 || r.longest_same_face >= 6;
+  // Limits for about a 0.5% false alarm rate over 100-200 rolls (simulated):
+  // a high/low run of 15 has P ~0.3% at n=100; 16 has P ~0.3% at n=200.
+  // A same-face run of 7 has P ~0.2-0.35% over 100-200 rolls.
+  const int hl_limit = total_rolls <= 120 ? 15 : 16;
+  r.is_suspicious = r.longest_high_run >= hl_limit || r.longest_low_run >= hl_limit ||
+                    r.longest_same_face >= 7;
   return r;
 }
 
@@ -177,7 +210,7 @@ poker_result calculate_poker_test(const int* roll_sequence, int total_rolls) {
   // 0 all different, 1 one pair, 2 two pair, 3 three of a kind, 4 full house,
   // 5 four of a kind, 6 five of a kind.
   poker_result r{};
-  r.critical_value = chi_critical(6);
+  r.critical_value = kChi1Df3;
   const int hands = total_rolls / 5;
   if (hands < 1 || roll_sequence == nullptr) {
     r.is_suspicious = true;
@@ -213,12 +246,18 @@ poker_result calculate_poker_test(const int* roll_sequence, int total_rolls) {
     0.0192901f,  // four of a kind
     0.0007716f   // five of a kind
   };
+  // With 20-40 hands the rare classes expect fewer than one hand each, so pool
+  // three-of-a-kind, full house, four and five of a kind into one class:
+  // 4 classes, df = 3. (Skipping them instead left the df wrong.)
+  const float pooled_p[4] = {p[0], p[1], p[2], p[3] + p[4] + p[5] + p[6]};
+  const int pooled_counts[4] = {
+    r.hand_counts[0], r.hand_counts[1], r.hand_counts[2],
+    r.hand_counts[3] + r.hand_counts[4] + r.hand_counts[5] + r.hand_counts[6]};
   float chi = 0.0f;
   const float n = static_cast<float>(hands);
-  for (int c = 0; c < 7; ++c) {
-    const float expected = p[c] * n;
-    if (expected < 1.0f) continue;  // sparse five-of-a-kind at n=20
-    const float d = static_cast<float>(r.hand_counts[c]) - expected;
+  for (int c = 0; c < 4; ++c) {
+    const float expected = pooled_p[c] * n;
+    const float d = static_cast<float>(pooled_counts[c]) - expected;
     chi += (d * d) / expected;
   }
   r.chi_squared = chi;
@@ -250,7 +289,7 @@ auto_corr_result calculate_autocorrelation(const int* roll_sequence, int total_r
   const double den_y = nd * sum_yy - sum_y * sum_y;
   const double den = std::sqrt(std::max(0.0, den_x * den_y));
   r.correlation = den > 0.0 ? static_cast<float>(num / den) : 0.0f;
-  r.critical_value = 1.96f / std::sqrt(static_cast<float>(total_rolls));
+  r.critical_value = kZ1 / std::sqrt(static_cast<float>(total_rolls));
   r.is_dependent = std::fabs(r.correlation) > r.critical_value;
   return r;
 }

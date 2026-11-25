@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <lvgl.h>
+#include "app/secure_mem.h"
 #include "bip39/bip39_generator.h"
 #include "bip39/bip39_wordlist.h"
 #include "ui/screens/ui_helper.h"
@@ -145,6 +146,8 @@ void ui_import_wallet_words_24th_word_show(int mode) {
       s_count++;
     }
   }
+  secure_wipe(indexes, sizeof(indexes));
+  secure_wipe(final_index, sizeof(final_index));
 
   lv_obj_t *screen = ui_make_screen();
 

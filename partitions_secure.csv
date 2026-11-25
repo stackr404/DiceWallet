@@ -1,0 +1,5 @@
+# Partition table for esp32dev_secure (table at 0xD000, see sdkconfig.defaults).
+# 0xD000-0xF000 holds the table and its 4 KB signature block, so nvs starts at 0xF000.
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0xF000,   0x6000
+factory,  app,  factory, 0x20000,  0x300000

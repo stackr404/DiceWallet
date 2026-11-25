@@ -1,3 +1,3 @@
 #pragma once
 
-#define DICEWALLET_VERSION "0.1.0"
+#define DICEWALLET_VERSION "0.2.0"

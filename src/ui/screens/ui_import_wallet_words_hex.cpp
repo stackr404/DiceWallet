@@ -77,10 +77,13 @@ static void finish_import(void) {
     result.word_indexes[i] = static_cast<uint16_t>(s_indexes[i]);
   }
   if (!result.success) {
+    secure_wipe(&result, sizeof(result));
     lv_label_set_text(s_hint, TR("Incorrect 24th index"));
     return;    
   }
   wallet_set_generation(result);
+  // wallet_set_generation() keeps its own copy; wipe this stack one.
+  secure_wipe(&result, sizeof(result));
   ui_wallet_display_seed_show(true);
 }
 

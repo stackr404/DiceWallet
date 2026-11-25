@@ -78,6 +78,25 @@ static void test_unsupported_algo_rejected(void) {
   TEST_ASSERT_EQUAL(0, xpub.length());
 }
 
+// Expected values computed independently (Python: PBKDF2, HMAC-SHA512,
+// secp256k1, HASH160). A different passphrase must give a different fingerprint.
+static void test_master_fingerprint(void) {
+  struct FpCase { const char* phrase; const char* pass; uint8_t fp[4]; };
+  static const FpCase cases[] = {
+    {kAbandonPhrase, "", {0x54, 0x36, 0xd7, 0x24}},
+    {kDiceOnesPhrase, "", {0xac, 0x0e, 0x5f, 0x0a}},
+    {kDiceOnesPhrase, "MyPassphrase", {0xd9, 0xa1, 0xf2, 0x3f}},
+  };
+  for (const FpCase& c : cases) {
+    wallet_generation_result wallet{};
+    TEST_ASSERT_TRUE(phrase_to_wallet(c.phrase, &wallet));
+    uint8_t fp[4] = {0xff, 0xff, 0xff, 0xff};
+    const String xpub = derive_account_xpub(wallet, String(c.pass), hd_coin_BTC, 0, fp);
+    TEST_ASSERT_GREATER_THAN(0, xpub.length());
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(c.fp, fp, 4);
+  }
+}
+
 void setup() {
   delay(2000);
   test_show_name("test_coins.cpp");
@@ -94,6 +113,9 @@ void setup() {
 
   RUN_TEST(test_unsupported_algo_rejected);
   test_show_result("unsupported algo rejected", Unity.CurrentTestFailed == 0);
+
+  RUN_TEST(test_master_fingerprint);
+  test_show_result("master fingerprint", Unity.CurrentTestFailed == 0);
 
   UNITY_END();
 }

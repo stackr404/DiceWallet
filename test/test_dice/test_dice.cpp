@@ -108,6 +108,54 @@ static void test_biased_sequence_is_not_success(void) {
   TEST_ASSERT_TRUE(run_fairness_verdict(report) != fairness_verdict::success);
 }
 
+// Fixed-seed xorshift32 so the result is the same on every run and device.
+static uint32_t s_xs = 0x9E3779B9u;
+static int next_face(void) {
+  for (;;) {
+    s_xs ^= s_xs << 13;
+    s_xs ^= s_xs >> 17;
+    s_xs ^= s_xs << 5;
+    const uint32_t v = s_xs >> 29;  // 0..7, reject 6 and 7 to stay unbiased
+    if (v < 6) return static_cast<int>(v) + 1;
+  }
+}
+
+// Honest dice must rarely see a warning, or users learn to ignore it.
+// Expected about 4% warnings and 5% chi errors; the limits leave room for noise.
+static void test_fair_dice_rarely_warn(void) {
+  const int trials = 300;
+  int warnings = 0;
+  int errors = 0;
+  int rolls[128];
+  for (int t = 0; t < trials; t++) {
+    for (int i = 0; i < 128; i++) rolls[i] = next_face();
+    const fairness_verdict v = run_fairness_verdict(run_die_fairness_tests(rolls, 128));
+    if (v == fairness_verdict::warning) warnings++;
+    if (v == fairness_verdict::error) errors++;
+  }
+  TEST_ASSERT_LESS_THAN_INT(trials * 8 / 100, warnings);
+  TEST_ASSERT_LESS_THAN_INT(trials * 10 / 100, errors);
+}
+
+// Typical made-up sequences must still be flagged.
+static void test_faked_sequences_warn(void) {
+  int rolls[120];
+  for (int i = 0; i < 120; i++) rolls[i] = (i % 6) + 1;
+  TEST_ASSERT_TRUE(run_fairness_verdict(run_die_fairness_tests(rolls, 120)) != fairness_verdict::success);
+
+  int prev = 0;
+  for (int i = 0; i < 120; i++) {
+    int f;
+    do { f = next_face(); } while (f == prev);  // a person avoiding repeats
+    rolls[i] = f;
+    prev = f;
+  }
+  TEST_ASSERT_TRUE(run_fairness_verdict(run_die_fairness_tests(rolls, 120)) != fairness_verdict::success);
+
+  for (int i = 0; i < 120; i++) rolls[i] = (i % 2) ? ((i / 2) % 3) + 4 : ((i / 2) % 3) + 1;
+  TEST_ASSERT_TRUE(run_fairness_verdict(run_die_fairness_tests(rolls, 120)) != fairness_verdict::success);
+}
+
 void setup() {
   delay(2000);
   test_show_name("test_dice.cpp");
@@ -145,6 +193,12 @@ void setup() {
 
   RUN_TEST(test_biased_sequence_is_not_success);
   test_show_result("biased sequence", Unity.CurrentTestFailed == 0);
+
+  RUN_TEST(test_fair_dice_rarely_warn);
+  test_show_result("fair dice rarely warn", Unity.CurrentTestFailed == 0);
+
+  RUN_TEST(test_faked_sequences_warn);
+  test_show_result("faked sequences warn", Unity.CurrentTestFailed == 0);
 
   UNITY_END();
 }
