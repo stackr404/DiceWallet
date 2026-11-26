@@ -61,7 +61,7 @@ To spend you would need to import the 24 word BIP39 mnemonic seed phrase into an
 
 Version: **0.2.0** (experimental; not a 1.0 release)
 
-To install DiceWallet without compiling it, see [Installing a release](#installing-a-release).
+To install DiceWallet without compiling it, use the [Web Flasher](https://stackr404.github.io/dicewallet-web-flasher/) in Chrome or Edge, or see [Installing a release](#installing-a-release).
 
 ---
 
@@ -349,6 +349,12 @@ The project uses **TFT_eSPI** (Bodmer) + **LVGL 9**.
 ## Installing a release
 
 You don't need to compile anything. Each [GitHub release](https://github.com/stackr404/DiceWallet/releases) has ready-made firmware files. You need a computer (Windows, macOS or Linux), a data USB cable, and Python 3 for `esptool`, Espressif's flashing tool.
+
+### Flash from your browser
+
+The easiest way: open the **[DiceWallet Web Flasher](https://stackr404.github.io/dicewallet-web-flasher/)** in desktop Chrome or Edge, plug in the board and click Install. Nothing to install on your computer. Before writing, the page checks the release files against the DiceWallet release key and reads the board's Secure Boot eFuses, so it won't write a version that would leave the board unable to start. It offers both versions described below.
+
+The page holds its own copy of the key, so it can't protect you if the website itself was replaced. For the strongest guarantee, download and verify the release yourself and flash it with `esptool`, as the rest of this section describes.
 
 ### Choose a version
 
