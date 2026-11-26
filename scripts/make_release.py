@@ -256,8 +256,17 @@ def main() -> None:
 
 Built from commit `{commit}`.
 
-See the README section **Installing a release** for full instructions,
-including how to verify these files before flashing.
+**Before flashing, verify the files and read the full steps for Windows,
+macOS and Linux:** [Installing a release](https://github.com/stackr404/DiceWallet#installing-a-release)
+
+Release public key: `dicewallet-secure-boot.pub.pem`, SHA-256
+`{sha256_file(PUBLIC_KEY)}`. It must match the key in the repository
+(`secure/dicewallet-secure-boot.pub.pem`) and the README.
+
+Quick check (Linux/macOS; Windows commands are in the README):
+
+    openssl dgst -sha256 -verify dicewallet-secure-boot.pub.pem -signature SHA256SUMS.sig SHA256SUMS
+    sha256sum -c SHA256SUMS        # macOS: shasum -a 256 -c SHA256SUMS
 
 ## Choose one version
 

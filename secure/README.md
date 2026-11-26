@@ -6,7 +6,7 @@ It does not hold the private key.
 | File | What it is |
 |------|------------|
 | `dicewallet-secure-boot.pub.pem` | Secure Boot v2 public key. Safe to publish. Used to verify a signed image. |
-| `secure_boot_signing_key.pem` | Private key. **Not in this repository.** Signs images. Losing it bricks every board burned with its digest. |
+| `secure_boot_signing_key.pem` | Private key. **Not in this repository.** Signs images. Losing it means no board burned with its digest can ever be updated again. |
 
 The private key lives outside the tree, for example `~/.dicewallet/secure_boot_signing_key.pem`, or wherever the `DICEWALLET_SIGNING_KEY` environment variable points to.
 
@@ -18,10 +18,14 @@ A valid signature proves the file came from the holder of that private key. It d
 
 ## Verify a signed image
 
-Download the signed release file and this public key. From the project root run the followign command, but use the correct bin path to esptools, and the correct .bin file path.
+Install `esptool` (it includes `espsecure`), download the release files and this public key into one folder, and run:
 
 ```bash
-~/.dicewallet/esptools/bin/espsecure verify-signature --version 2 \
-  --keyfile secure/dicewallet-secure-boot.pub.pem \
-  dicewallet-<version>-esp32dev_secure.signed.bin
+espsecure verify-signature --version 2 \
+  --keyfile dicewallet-secure-boot.pub.pem \
+  dicewallet-<version>-secure-app.bin
 ```
+
+Repeat for `-secure-bootloader.bin` and `-secure-partitions.bin`. The SHA-256 of this public key file is `79c0f81466f6b9ad0268db99330680b99ec2ee0e9598da69c358fe1f0d5bfb86`.
+
+The main README section [Installing a release](../README.md#installing-a-release) has the full steps for Windows, macOS and Linux: checking the key, the signed checksum list, every file, and flashing.
