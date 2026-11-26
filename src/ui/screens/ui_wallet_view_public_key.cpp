@@ -25,7 +25,7 @@ static void on_finish(lv_event_t *event) {
 void ui_wallet_view_public_key_show(const char *coin, const char *key, const char *path) {
   lv_obj_t *screen = ui_make_screen();
 
-  lv_obj_t *title = ui_make_title(screen, coin != nullptr ? coin : "");
+  ui_make_title(screen, coin != nullptr ? coin : "");
   
   lv_obj_t *qr = lv_qrcode_create(screen);
   lv_qrcode_set_size(qr, 108);

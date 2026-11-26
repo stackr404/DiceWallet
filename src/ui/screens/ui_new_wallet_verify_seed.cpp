@@ -55,16 +55,9 @@ static void wipe_verify_copies(void) {
 }
 
 static void return_to_seed(void) {
-  const char *words[24];
-  uint16_t indexes[24];
-  for (int i = 0; i < 24; i++) {
-    words[i] = s_words[i];
-    indexes[i] = s_indexes[i];
-  }
+  // The seed screen reloads the words from the wallet, so no copy is needed.
   wipe_verify_copies();
   ui_wallet_display_seed_show(false);
-  secure_wipe(indexes, sizeof(indexes));
-  for (int i = 0; i < 24; i++) words[i] = nullptr;
 }
 
 static void update_mistakes_label(void) {

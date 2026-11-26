@@ -57,7 +57,7 @@ static lv_obj_t *add_method_button(lv_obj_t *screen, const char *text, int y, lv
 void ui_import_wallet_method_show(void) {
   lv_obj_t *screen = ui_make_screen();
 
-  lv_obj_t *title = ui_make_title(screen, TR("Import Method"));
+  ui_make_title(screen, TR("Import Method"));
 
   add_method_button(screen, TR("24 Words"), 64, on_word);
   if (ui_settings_advanced_enabled()) {

@@ -104,7 +104,7 @@ void ui_wallet_passphrase_show(void) {
 
   lv_obj_t *screen = ui_make_screen();
 
-  lv_obj_t *title = ui_make_title(screen, TR("Passphrase"));
+  ui_make_title(screen, TR("Passphrase"));
 
   lv_obj_t *hint = lv_label_create(screen);
   lv_label_set_text(hint, TR("Printable ASCII only, 128 max. Empty means none."));
