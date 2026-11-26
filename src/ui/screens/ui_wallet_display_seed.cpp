@@ -238,10 +238,12 @@ void ui_wallet_display_seed_show(bool imported) {
   wallet_generation_result w = wallet_generation();
 
   for (int i = 0; i < 24; i++) {
-    s_words[i] = w.mnemonic_24_words != nullptr ? w.mnemonic_24_words[i] : nullptr;
-    s_indexes[i] = w.word_indexes != nullptr ? w.word_indexes[i] : 0;
+    s_words[i] = w.mnemonic_24_words[i];
+    s_indexes[i] = w.word_indexes[i];
     s_labels[i] = nullptr;
   }
+  // The copies above are all this screen needs; wipe the stack copy of the seed.
+  secure_wipe(&w, sizeof(w));
   s_visual = nullptr;
   s_row_top = nullptr;
   s_row_bottom = nullptr;
